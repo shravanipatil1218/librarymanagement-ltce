@@ -4,10 +4,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Library } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
   const { login, signup } = useAuth();
@@ -19,29 +20,35 @@ export default function AuthPage() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupRole, setSignupRole] = useState<"customer" | "admin">("customer");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(loginEmail, loginPassword)) {
+    setLoading(true);
+    const success = await login(loginEmail, loginPassword);
+    setLoading(false);
+    if (success) {
       navigate(loginEmail === "admin@library.com" ? "/admin" : "/dashboard");
+    } else {
+      toast({ title: "Login Failed", description: "Invalid email or password.", variant: "destructive" });
     }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (signup(signupName, signupEmail, signupPassword, signupRole)) {
+    setLoading(true);
+    const success = await signup(signupName, signupEmail, signupPassword, signupRole);
+    setLoading(false);
+    if (success) {
       navigate(signupRole === "admin" ? "/admin" : "/dashboard");
+    } else {
+      toast({ title: "Signup Failed", description: "Could not create account.", variant: "destructive" });
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary mb-4">
             <Library className="w-8 h-8 text-primary-foreground" />
@@ -58,7 +65,6 @@ export default function AuthPage() {
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
             </CardHeader>
-
             <CardContent>
               <TabsContent value="login" className="mt-0">
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -70,15 +76,11 @@ export default function AuthPage() {
                     <Label htmlFor="login-password">Password</Label>
                     <Input id="login-password" type="password" placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
                   </div>
-                  <Button type="submit" className="w-full">
-                    <BookOpen className="w-4 h-4 mr-2" /> Sign In
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    <BookOpen className="w-4 h-4 mr-2" /> {loading ? "Signing in..." : "Sign In"}
                   </Button>
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    Demo: use <span className="font-medium">admin@library.com</span> for admin access, any other email for customer.
-                  </p>
                 </form>
               </TabsContent>
-
               <TabsContent value="signup" className="mt-0">
                 <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
@@ -100,7 +102,7 @@ export default function AuthPage() {
                       <Button type="button" variant={signupRole === "admin" ? "default" : "outline"} onClick={() => setSignupRole("admin")} className="w-full">Admin</Button>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full">Create Account</Button>
+                  <Button type="submit" className="w-full" disabled={loading}>{loading ? "Creating..." : "Create Account"}</Button>
                 </form>
               </TabsContent>
             </CardContent>
