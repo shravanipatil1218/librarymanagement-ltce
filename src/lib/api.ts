@@ -1,5 +1,4 @@
 
-
 const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/library-api`;
 
 async function apiFetch(path: string, options: RequestInit = {}) {
