@@ -71,3 +71,26 @@ export const apiGetPayments = (userId?: string) => {
 };
 export const apiCreatePayment = (userId: string, amount: number, paymentType: string, issuedBookId?: string, description?: string) =>
   apiFetch("payments", { method: "POST", body: JSON.stringify({ userId, issuedBookId, amount, paymentType, description }) });
+
+// Manual Returns
+export const apiCreateManualReturnReceipt = (
+  customerName: string,
+  customerEmail: string | undefined,
+  bookTitle: string,
+  isbn: string,
+  returnDate: string,
+  lateFeeAmount: number,
+  paymentMethod: string
+) =>
+  apiFetch("manual-returns/receipts", {
+    method: "POST",
+    body: JSON.stringify({
+      customerName,
+      customerEmail,
+      bookTitle,
+      isbn,
+      returnDate,
+      lateFeeAmount,
+      paymentMethod,
+    }),
+  });

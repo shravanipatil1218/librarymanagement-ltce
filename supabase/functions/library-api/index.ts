@@ -149,6 +149,91 @@ Deno.serve(async (req) => {
       return json(await client.query("SELECT id, isbn, title, author, genre, available, total FROM books ORDER BY title"));
     }
 
+    // --- MANUAL RETURNS RECEIPTS ---
+    if (path === "manual-returns/receipts" && req.method === "POST") {
+      const { customerName, customerEmail, bookTitle, isbn, returnDate, lateFeeAmount, paymentMethod } = await req.json();
+
+      // Validate required fields
+      if (!customerName || !bookTitle || !isbn || !returnDate) {
+        return json({ error: "Missing required fields" }, 400);
+      }
+
+      try {
+        // Create manual_returns_receipts table if it doesn't exist
+        await client.execute(`
+          CREATE TABLE IF NOT EXISTS manual_returns_receipts (
+            id VARCHAR(36) PRIMARY KEY,
+            receipt_id VARCHAR(20) NOT NULL UNIQUE,
+            customer_name VARCHAR(255) NOT NULL,
+            customer_email VARCHAR(255),
+            book_title VARCHAR(255) NOT NULL,
+            isbn VARCHAR(20) NOT NULL,
+            return_date DATE NOT NULL,
+            late_fee_amount DECIMAL(10, 2) NOT NULL,
+            payment_method VARCHAR(50) NOT NULL,
+            admin_id VARCHAR(36),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_receipt_id (receipt_id),
+            INDEX idx_created_at (created_at)
+          )
+        `);
+
+        const recordId = crypto.randomUUID();
+        const currentYear = new Date().getFullYear();
+
+        // Get the last receipt number for current year
+        const lastReceipt = await client.query(
+          `SELECT receipt_id FROM manual_returns_receipts 
+           WHERE receipt_id LIKE ? 
+           ORDER BY created_at DESC LIMIT 1`,
+          [`RCP-${currentYear}-%`]
+        );
+
+        let nextNumber = 1;
+        if (lastReceipt.length > 0) {
+          const lastId = lastReceipt[0].receipt_id;
+          const matches = lastId.match(/RCP-\d+-(\d+)/);
+          if (matches) {
+            nextNumber = parseInt(matches[1], 10) + 1;
+          }
+        }
+
+        const receiptId = `RCP-${currentYear}-${String(nextNumber).padStart(5, "0")}`;
+
+        // Insert the receipt record
+        await client.execute(
+          `INSERT INTO manual_returns_receipts (
+            id, receipt_id, customer_name, customer_email, book_title, isbn, 
+            return_date, late_fee_amount, payment_method
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            recordId,
+            receiptId,
+            customerName,
+            customerEmail || null,
+            bookTitle,
+            isbn,
+            returnDate,
+            lateFeeAmount || 0,
+            paymentMethod || "cash"
+          ]
+        );
+
+        const timestamp = new Date().toISOString();
+        return json({
+          id: recordId,
+          receiptId,
+          createdAt: timestamp,
+          success: true,
+          message: "Receipt created successfully"
+        }, 201);
+      } catch (dbError) {
+        console.error("Database error:", dbError);
+        const errorMsg = dbError instanceof Error ? dbError.message : "Database error";
+        return json({ error: `Failed to create receipt: ${errorMsg}` }, 500);
+      }
+    }
+
     return json({ error: "Not found" }, 404);
   } catch (error: unknown) {
     console.error("API Error:", error);
